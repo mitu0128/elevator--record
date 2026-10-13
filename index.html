@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电梯记录工具</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f3f4f6;color:#1f2937;padding-bottom:80px}
+  .h{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;padding:16px;position:sticky;top:0;z-index:50}
+  .h h1{font-size:19px}
+  .h .s{font-size:12px;opacity:.9;margin-top:3px}
+  .bar{margin-top:10px;font-size:13px;background:rgba(0,0,0,.2);border-radius:6px;padding:8px}
+  .ok{color:#a7f3d0}.bad{color:#fecaca}
+  .tool{padding:12px 16px;display:flex;gap:8px;background:#fff;border-bottom:1px solid #e5e7eb}
+  .tool input{flex:1;padding:9px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:15px}
+  .b{padding:9px 14px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .bp{background:#16a34a;color:#fff}
+  .bg{background:#fff;border:1px solid #e5e7eb}
+  .bd{background:#dc2626;color:#fff}
+  .bs{padding:6px 10px;font-size:13px;border-radius:6px}
+  .diag{margin:12px 16px;background:#111827;color:#a7f3d0;border-radius:10px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;word-break:break-all}
+  .diag .e{color:#fecaca}
+  .list{padding:12px 16px}
+  .card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .ct{font-size:17px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;gap:8px}
+  .ct .n{flex:1}
+  .bdg{font-size:12px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#2563eb}
+  .rw{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb;font-size:15px}
+  .rw:last-child{border-bottom:none}
+  .rw .k{color:#6b7280}
+  .rw .v{font-weight:600;text-align:right}
+  .mt{text-align:center;color:#6b7280;padding:60px 20px;font-size:15px;display:none}
+  .fab{position:fixed;right:20px;bottom:24px;width:58px;height:58px;border-radius:50%;background:#16a34a;color:#fff;font-size:30px;border:none;box-shadow:0 4px 14px rgba(22,163,74,.5);z-index:60;display:none}
+  .mk{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:flex-end}
+  .mk.s{display:flex}
+  .mo{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:20px;max-height:85vh;overflow-y:auto}
+  .mo h2{font-size:18px;margin-bottom:16px}
+  .fd{margin-bottom:14px}
+  .fd label{display:block;font-size:14px;color:#6b7280;margin-bottom:5px}
+  .fd input,.fd textarea{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:16px}
+  .ma{display:flex;gap:10px;margin-top:8px}
+  .ma .b{flex:1}
+  .t{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;z-index:200;max-width:85vw;text-align:center}
+  .t.e{background:#dc2626}
+</style>
+</head>
+<body>
+<div class="h">
+  <h1>小区楼栋电梯信息记录</h1>
+  <div class="s">v3 诊断版 · 全部诊断结果显示在下方黑色框内</div>
+  <div class="bar" id="bar">初始化中…</div>
+</div>
+
+<div class="tool">
+  <input type="text" id="q" placeholder="搜索小区名称">
+  <button class="b bg bs" id="lb">🔑 登录</button>
+</div>
+
+<div class="diag" id="diag"></div>
+
+<div class="list" id="list"></div>
+<div class="mt" id="mt">还没有小区记录，点右下角 + 添加</div>
+
+<button class="fab" id="fab">＋</button>
+
+<div class="mk" id="lm"><div class="mo">
+  <h2>管理员登录</h2>
+  <div class="fd"><label>密码</label><input type="password" id="pi" placeholder="管理密码"></div>
+  <div class="ma"><button class="b bg" data-c="lm">取消</button><button class="b bp" id="dl">登录</button></div>
+</div></div>
+
+<div class="mk" id="cm"><div class="mo">
+  <h2 id="cmt">添加小区</h2>
+  <div class="fd"><label>小区名称 *</label><input id="f_name"></div>
+  <div class="fd"><label>楼栋数量</label><input id="f_buildings" type="number"></div>
+  <div class="fd"><label>电梯品牌</label><input id="f_brand"></div>
+  <div class="fd"><label>维保公司</label><input id="f_maint"></div>
+  <div class="fd"><label>下次检验日期</label><input id="f_nextCheck" type="date"></div>
+  <div class="fd"><label>备注</label><textarea id="f_note" rows="2"></textarea></div>
+  <div class="ma"><button class="b bg" data-c="cm">取消</button><button class="b bp" id="sc">保存</button></div>
+</div></div>
+
+<script>
+(function(){
+  var ADMIN="520", COLL="communities";
+  var bar=document.getElementById("bar"), diag=document.getElementById("diag");
+  var L=[];
+  function log(m,e){L.push((e?"[ERR] ":"[OK]  ")+m); diag.textContent=L.join("\n"); window.scrollTo(0,document.body.scrollHeight);}
+  function setB(m,c){bar.innerHTML=m;bar.className="bar "+(c||"");}
+  function toast(m,e){var t=document.createElement("div");t.className="t"+(e?" e":"");t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},2400);}
+  var S={data:[],admin:false,ok:false,editId:null,db:null};
+
+  // 步骤0：本文件自身特征（确认页面已刷新）
+  log("页面加载 v3 诊断版");
+  log("当前时间 " + new Date().toLocaleTimeString());
+
+  // 步骤1：检测 firebase 是否可用
+  function init(){
+    if(typeof firebase === "undefined"){
+      log("firebase 全局对象不存在", true);
+      log("原因：gstatic.com 的 SDK 脚本未加载（网络无法访问 Google CDN）", true);
+      setB("云端：SDK 未加载 · 使用本机存储 · 多设备无法同步", "bad");
+      S.data = loadLocal(); render();
+      return;
+    }
+    log("firebase SDK 存在，版本 " + (firebase.SDK_VERSION||"?"));
+    try{
+      firebase.initializeApp({
+        apiKey:"AIzaSyA7OK3ybIJazOjrjhZdZeZZTbzPZRVz1tY",
+        authDomain:"elevator-record.firebaseapp.com",
+        projectId:"elevator-record"
+      });
+      log("initializeApp 成功");
+    }catch(e){ log("initializeApp 失败："+(e&&e.message),true); setB("云端：初始化失败","bad"); return; }
+    var db;
+    try{ db=firebase.firestore(); log("firestore 实例获取成功"); }
+    catch(e){ log("firestore 获取失败："+(e&&e.message),true); setB("云端：firestore 不可用","bad"); return; }
+    S.db=db; S.ok=true;
+
+    // 连通性探测
+    log("尝试写入连通性探测文档…");
+    db.collection("__ping").doc("p").set({t:Date.now()},{merge:true})
+      .then(function(){ log("连通探测写入成功 ✅ → Firestore 可写"); setB("云端：已连接 · 可正常读写","ok"); })
+      .catch(function(e){ log("连通探测写入失败："+(e&&e.message),true); setB("云端：已连接但写入被拒 · 检查数据库/规则","bad"); });
+
+    db.collection(COLL).onSnapshot(function(s){
+      log("云端数据推送，文档数="+s.size);
+      var a=[]; s.forEach(function(d){var o=d.data();o.id=d.id;a.push(o);});
+      a.sort(function(x,y){return (x.name||"").localeCompare(y.name||"","zh");});
+      S.data=a; render(); saveLocal(a);
+    },function(e){ log("云端监听错误："+(e&&e.message),true); });
+
+    db.collection(COLL).get().then(function(s){
+      if(s.size===0) setB("云端：已连接 · 暂无数据，可开始添加","ok");
+    }).catch(function(e){ log("首次读取失败："+(e&&e.message),true); });
+  }
+
+  function saveLocal(a){try{localStorage.setItem("elevator_data",JSON.stringify(a));}catch(e){}}
+  function loadLocal(){try{var s=localStorage.getItem("elevator_data");return s?JSON.parse(s):[];}catch(e){return [];}}
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function row(k,v){return '<div class="rw"><span class="k">'+k+'</span><span class="v">'+esc(v)+'</span></div>';}
+  function render(){
+    var list=document.getElementById("list"), kw=(document.getElementById("q").value||"").trim().toLowerCase();
+    var arr=S.data.filter(function(d){return !kw||(d.name||"").toLowerCase().indexOf(kw)>=0;});
+    document.getElementById("mt").style.display = S.data.length?"none":"block";
+    list.innerHTML="";
+    arr.forEach(function(d){
+      var c=document.createElement("div"); c.className="card";
+      var h='<div class="ct"><span class="n">'+esc(d.name)+'</span><span class="bdg">'+(d.buildings||"?")+'栋</span></div>';
+      h+=row("电梯品牌",d.brand||"—");
+      h+=row("维保公司",d.maint||"—");
+      h+=row("下次检验",d.nextCheck||"—");
+      if(d.note) h+=row("备注",d.note);
+      if(S.admin){h+='<div style="margin-top:10px;display:flex;gap:8px;">';
+        h+='<button class="b bg bs" data-a="edit" data-i="'+d.id+'">✏️ 编辑</button>';
+        h+='<button class="b bd bs" data-a="del" data-i="'+d.id+'">🗑 删除</button></div>';}
+      c.innerHTML=h; list.appendChild(c);
+    });
+  }
+
+  function saveCommunity(o){
+    if(!S.ok){toast("云端未连接，已存本机（仅本机可见）",true);render();return;}
+    var id=o.id||S.db.collection(COLL).doc().id;
+    o.id=id; o.updatedAt=Date.now();
+    S.db.collection(COLL).doc(id).set(o).then(function(){log("保存成功 id="+id);toast("已存云端");})
+      .catch(function(e){log("保存失败："+(e&&e.message),true);toast("云端保存失败",true);});
+  }
+  function delCommunity(id){
+    if(!confirm("确定删除？"))return;
+    if(S.ok){S.db.collection(COLL).doc(id).delete().then(function(){toast("已删除");}).catch(function(e){toast("删除失败",true);});}
+    else{S.data=S.data.filter(function(d){return d.id!==id;});saveLocal(S.data);render();}
+  }
+
+  document.getElementById("lb").onclick=function(){document.getElementById("lm").classList.add("s");document.getElementById("pi").focus();};
+  document.getElementById("dl").onclick=function(){
+    if(document.getElementById("pi").value===ADMIN){S.admin=true;document.getElementById("lb").textContent="✔ 已登录";
+      document.getElementById("fab").style.display="block";cl("lm");document.getElementById("pi").value="";toast("登录成功");render();}
+    else toast("密码错误",true);
+  };
+  document.getElementById("fab").onclick=function(){openCM(null);};
+  document.getElementById("sc").onclick=function(){
+    var n=document.getElementById("f_name").value.trim();
+    if(!n){toast("请填写小区名称",true);return;}
+    saveCommunity({id:S.editId||null,name:n,buildings:document.getElementById("f_buildings").value,
+      brand:document.getElementById("f_brand").value,maint:document.getElementById("f_maint").value,
+      nextCheck:document.getElementById("f_nextCheck").value,note:document.getElementById("f_note").value});
+    cl("cm");
+  };
+  document.getElementById("q").oninput=render;
+  document.getElementById("list").onclick=function(e){
+    var t=e.target.closest("[data-a]");if(!t)return;var a=t.dataset.a,i=t.dataset.i;
+    if(a==="edit"){var d=S.data.filter(function(x){return x.id===i;})[0];openCM(d);}
+    if(a==="del"){delCommunity(i);}
+  };
+  document.querySelectorAll("[data-c]").forEach(function(b){b.onclick=function(){cl(b.dataset.c);};});
+  function cl(x){document.getElementById(x).classList.remove("s");}
+  function openCM(d){
+    S.editId=d?d.id:null;document.getElementById("cmt").textContent=d?"编辑小区":"添加小区";
+    document.getElementById("f_name").value=d?d.name:"";
+    document.getElementById("f_buildings").value=d?d.buildings:"";
+    document.getElementById("f_brand").value=d?d.brand:"";
+    document.getElementById("f_maint").value=d?d.maint:"";
+    document.getElementById("f_nextCheck").value=d?d.nextCheck:"";
+    document.getElementById("f_note").value=d?d.note:"";
+    document.getElementById("cm").classList.add("s");
+  }
+
+  init();
+  if(!S.ok){S.data=loadLocal();render();}
+})();
+</script>
+</body>
+</html>
